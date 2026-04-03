@@ -1,5 +1,5 @@
 <?php
-namespace App;
+namespace App\Bin;
 use DOMDocument;
 use DOMXPath;
 use League\HTMLToMarkdown\HtmlConverter;
