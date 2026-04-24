@@ -2,12 +2,9 @@
 namespace App\Bin;
 
 class Composer {
-    private $db;
-    private $redis;
-
-    public function __construct($db, $redis) {
-        $this->db = $db;
-        $this->redis = $redis;
+    public function __construct($container) {
+        $this->redis = $container->make('redis');
+        $this->db = $container->make('db');
     }
 
     public function run() {
@@ -20,7 +17,7 @@ class Composer {
 
             if ($news) {
                 foreach ($news as $item) {
-                    $this->redis->push('tasks_queue', [
+                    $this->redis->push(Worker::$similar, [
                         'action' => 'parse_full_text',
                         'id'     => $item['id'],
                         'link'   => $item['link']
@@ -32,15 +29,14 @@ class Composer {
             }
 
             $content = $this->db->fetchAll(
-                "SELECT id, content FROM news_content WHERE status = 0 LIMIT 10 FOR UPDATE SKIP LOCKED"
+                "SELECT id FROM news_content WHERE status = 0 LIMIT 10 FOR UPDATE SKIP LOCKED"
             );
 
             if ($content) {
                 foreach ($content as $item) {
-                    $this->redis->push('tasks_queue', [
+                    $this->redis->push(Worker::$large, [
                         'action' => 'generate_summary',
                         'id'     => $item['id'],
-                        'full_text'   => $item['content']
                     ]);
 
                     $this->db->query("UPDATE news_content SET status = 1 WHERE id = ?", [$item['id']]);
@@ -48,7 +44,7 @@ class Composer {
                 }
             }
 
-            sleep(100); // Короткая пауза, чтобы не "спамить" базу
+            sleep(100);
         }
     }
 }

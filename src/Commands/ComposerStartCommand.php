@@ -11,16 +11,9 @@ class ComposerStartCommand extends Command
     public function execute(array $args): void
     {
         echo "\e[34m[*] Инициализация Композитора...\e[0m\n";
-
         try {
-            // Извлекаем зависимости из контейнера
-            $db = $this->container->make('db');
-            $redis = $this->container->make('redis');
+            $composer = new Composer($this->container);
 
-            // Создаем экземпляр бинарника Композитора
-            $composer = new Composer($db, $redis);
-//
-//            // Запускаем бесконечный цикл мониторинга
             $composer->run();
 
         } catch (Exception $e) {

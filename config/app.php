@@ -13,5 +13,10 @@ return [
         'name' => $_ENV['DB_NAME'] ?? 'localhost',
         'user' => $_ENV['DB_USER'] ?? 'root',
         'pass' => $_ENV['DB_PASS'] ?? '',
+    ],
+    'aiService' => [
+        'host' => $_ENV['AI_HOST'],
+        'summariseModel' => $_ENV['AI_SUMMARISE_MODEL'],
+        'embeddingModel' => $_ENV['AI_EMBEDDING_MODEL'],
     ]
 ];

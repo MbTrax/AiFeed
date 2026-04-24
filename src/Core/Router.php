@@ -33,7 +33,6 @@ class Router {
             }
         }
 
-        // Создаем контроллер, передавая ему зависимости автоматически
         $controller = $reflection->newInstanceArgs($dependencies);
 
         return $controller->$methodName();

@@ -18,6 +18,9 @@ class Bootstrap {
         $container->bind('parser', function() {
             return new \App\Services\ParserService();
         });
+        $container->bind('aiService', function() use ($config) {
+            return new \App\Services\AiService($config['aiService']);
+        });
 
     }
 }
