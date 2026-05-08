@@ -2,8 +2,8 @@
 
 namespace App\Commands;
 
-use App\Core\Command;
 use App\Bin\Worker;
+use App\Core\Command;
 use Exception;
 
 class WorkerStartCommand extends Command
@@ -11,13 +11,19 @@ class WorkerStartCommand extends Command
     public function execute(array $args): void
     {
         $queueName = $args[0] ?? 'tasks_queue';
-        echo "\e[32m[*] Запуск Воркера для очереди: $queueName...\e[0m\n";
-        echo "[*] Нажми Ctrl+C для остановки.\n";
+        $logger = $this->container->make('logger')->withChannel('worker');
+        $logger->info('init', ['queue' => $queueName]);
+
+        echo "[*] Starting worker for queue: {$queueName}\n";
+        echo "[*] Ctrl+C to stop.\n";
+
         try {
             $worker = new Worker($this->container);
             $worker->run($queueName);
         } catch (Exception $e) {
-            echo "\e[31m[Ошибка Воркера]\e[0m " . $e->getMessage() . "\n";
+            $logger->error($e->getMessage(), ['queue' => $queueName]);
+            echo "[worker] error: " . $e->getMessage() . "\n";
         }
     }
 }
+

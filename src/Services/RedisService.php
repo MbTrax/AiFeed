@@ -17,9 +17,6 @@ class RedisService
         $this->redis = new Redis();
     }
 
-    /**
-     * Ленивое подключение к Redis
-     */
     private function getClient(): Redis
     {
         try {
@@ -71,10 +68,47 @@ class RedisService
     }
 
     /**
+     * Best-effort distributed lock using SET key value NX EX ttl.
+     * Returns lock token on success, null on contention.
+     */
+    public function acquireLock(string $key, int $ttlSec = 60): ?string
+    {
+        $token = bin2hex(random_bytes(16));
+        $ok = $this->getClient()->set($key, $token, ['nx', 'ex' => $ttlSec]);
+        return $ok ? $token : null;
+    }
+
+    public function releaseLock(string $key, string $token): void
+    {
+        // Release only if token matches (Lua for atomicity).
+        $lua = "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end";
+        try {
+            $this->getClient()->eval($lua, [$key, $token], 1);
+        } catch (\Throwable $e) {
+            // ignore
+        }
+    }
+
+    /**
      * Обычный кэш: прочитать значение
      */
     public function get(string $key)
     {
         return $this->getClient()->get($key);
+    }
+
+    public function zAdd(string $key, int $score, string $member): void
+    {
+        $this->getClient()->zAdd($key, $score, $member);
+    }
+
+    public function zRangeByScore(string $key, int $min, int $max, int $limit = 100): array
+    {
+        return $this->getClient()->zRangeByScore($key, $min, $max, ['limit' => [0, $limit]]);
+    }
+
+    public function zRem(string $key, string $member): void
+    {
+        $this->getClient()->zRem($key, $member);
     }
 }

@@ -10,13 +10,15 @@ class RssParseCommand extends Command
     public function execute(array $args): void
     {
         $url = $args[0] ?? null;
-
         if (!$url) {
-            echo "\e[31m[Ошибка]\e[0m Укажите URL RSS-канала.\n";
+            echo "[rss:parse] missing url\n";
             return;
         }
 
-        echo "[*] Начинаю парсинг: $url...\n";
+        $logger = $this->container->make('logger')->withChannel('rss');
+        $logger->info('parse start', ['url' => $url]);
+
+        echo "[rss:parse] parsing {$url}\n";
 
         try {
             $rssService = $this->container->make('rss');
@@ -26,15 +28,14 @@ class RssParseCommand extends Command
             $count = 0;
 
             foreach ($items as $item) {
-                $sql = "INSERT INTO news (title, link, description, created_at) 
-                        VALUES (?, ?, ?, ?) 
+                $sql = "INSERT INTO news (title, link, description, created_at)
+                        VALUES (?, ?, ?, CURRENT_TIMESTAMP)
                         ON CONFLICT (link) DO NOTHING";
 
                 $stmt = $db->query($sql, [
-                    $item['title'],
-                    $item['link'],
-                    $item['description'],
-                    date('Y-m-d H:i:s')
+                    (string)($item['title'] ?? ''),
+                    (string)($item['link'] ?? ''),
+                    (string)($item['description'] ?? ''),
                 ]);
 
                 if ($stmt->rowCount() > 0) {
@@ -42,10 +43,12 @@ class RssParseCommand extends Command
                 }
             }
 
-            echo "\e[32m[Успех]\e[0m Обработка завершена. Реально добавлено: $count\n";
-
+            $logger->info('parse done', ['url' => $url, 'added' => $count]);
+            echo "[rss:parse] done, added={$count}\n";
         } catch (Exception $e) {
-            echo "\e[31m[Критическая ошибка]\e[0m " . $e->getMessage() . "\n";
+            $logger->error($e->getMessage(), ['url' => $url]);
+            echo "[rss:parse] error: " . $e->getMessage() . "\n";
         }
     }
 }
+
