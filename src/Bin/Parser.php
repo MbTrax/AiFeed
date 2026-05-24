@@ -32,13 +32,11 @@ class Parser {
 //        $body = $doc->getElementsByTagName('article')->item(0) ?: $doc->getElementsByTagName('body')->item(0);
 
         if ($body) {
-            // Удаляем мусор (скрипты, стили, навигацию)
             $xpath = new DOMXPath($doc);
             foreach ($xpath->query('//script|//style|//nav|//header|//footer//img//a') as $node) {
                 $node->parentNode->removeChild($node);
             }
 
-            // Получаем очищенный HTML контента
             $cleanHtml = $doc->saveHTML($body);
 
             // Конвертируем в Markdown

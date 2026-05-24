@@ -15,6 +15,7 @@ $commands = [
     'composer:start' => \App\Commands\ComposerStartCommand::class,
     'app:start' => \App\Commands\AppStartCommand::class,
     'app:stop' => \App\Commands\AppStopCommand::class,
+    'backfill:embeddings' => \App\Commands\BackfillEmbeddingsCommand::class,
     'test:services' => \App\Commands\TestServicesCommand::class,
     'test:worker' => \App\Commands\TestWorkerCommand::class,
     'test:composer' => \App\Commands\TestComposerCommand::class,

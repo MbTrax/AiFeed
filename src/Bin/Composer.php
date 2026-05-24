@@ -81,30 +81,11 @@ SQL);
 
         foreach ($content as $item) {
             $this->redis->push(Worker::$large, [
-                'action' => 'generate_summary',
+                'action' => 'generate_enrichment',
                 'id' => (int)$item['id'],
             ]);
-            $this->log->info('queued generate_summary', ['id' => (int)$item['id']]);
-            echo "[Composer] queued generate_summary: {$item['id']}\n";
-        }
-
-        // Queue embeddings for processed content (after summary marked as done by worker).
-        $embed = $this->db->fetchAll(<<<'SQL'
-SELECT c.id
-FROM news_content c
-LEFT JOIN news_content_embedding e ON e.news_content_id = c.id
-WHERE c.status = 2
-  AND (e.news_content_id IS NULL OR e.status <> 2)
-ORDER BY c.id
-LIMIT 10
-SQL);
-
-        foreach ($embed as $item) {
-            $this->redis->push(Worker::$embedding, [
-                'action' => 'generate_embedding',
-                'id' => (int)$item['id'],
-            ]);
-            $this->log->info('queued generate_embedding', ['id' => (int)$item['id']]);
+            $this->log->info('queued generate_enrichment', ['id' => (int)$item['id']]);
+            echo "[Composer] queued generate_enrichment: {$item['id']}\n";
         }
     }
 
@@ -112,7 +93,7 @@ SQL);
     {
         $now = time();
 
-        foreach ([Worker::$similar, Worker::$large, Worker::$embedding] as $queue) {
+        foreach ([Worker::$similar, Worker::$large] as $queue) {
             $zkey = "delayed:{$queue}";
             $members = $this->redis->zRangeByScore($zkey, 0, $now, 200);
             if (!$members) {

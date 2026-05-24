@@ -7,14 +7,12 @@ use Exception;
 class AiService
 {
     public string $apiUrl;
-    public string $embeddingsUrl;
     public string $summariseModel;
     public string $embeddingModel;
 
     public function __construct($config)
     {
         $this->apiUrl = (string)($config['apiUrl'] ?? '');
-        $this->embeddingsUrl = (string)($config['embeddingsUrl'] ?? '');
         $this->summariseModel = (string)($config['summariseModel'] ?? '');
         $this->embeddingModel = (string)($config['embeddingModel'] ?? '');
     }
@@ -25,15 +23,14 @@ class AiService
             'type' => 'object',
             'properties' => [
                 'tags' => ['type' => 'array', 'items' => ['type' => 'string']],
-                'keyWords' => ['type' => 'array', 'items' => ['type' => 'string']],
                 'summary' => ['type' => 'string'],
             ],
-            'required' => ['tags', 'keyWords', 'summary'],
+            'required' => ['tags', 'summary'],
             'additionalProperties' => false,
         ];
 
         $system = 'Ты аналитик новостей. Проанализируй текст и верни ответ строго в формате JSON согласно схеме. ' .
-            'Ограничения: tags максимум 10 элементов, keyWords максимум 10 элементов, summary 2-4 предложения. ' .
+            'Ограничения: tags максимум 10 элементов, summary 2-4 предложения. ' .
             'Никакого текста вне JSON.';
         $content = str_replace(["\r", "\t"], " ", $content);
         $content = preg_replace('/\s+/', ' ', $content); // Схлопываем множественные пробелы в один
@@ -55,7 +52,6 @@ class AiService
             ],
             'temperature' => 0.1,
             // LM Studio/OpenAI-compatible servers use max_tokens; ensure response isn't truncated mid-JSON.
-            'max_tokens' => 800,
         ];
 
         $maxAttempts = 5;
@@ -159,14 +155,38 @@ class AiService
         return $t;
     }
 
-    public function embedding(string $input): array
+    public function embedding(string $summary): array
     {
-        $payload = [
-            'model' => $this->embeddingModel,
-            'input' => $input,
+
+        $jsonSchema = [
+            'type' => 'object',
+            'properties' => [
+                'vector' => ['type' => 'string'],
+            ],
+            'required' => ['vector'],
+            'additionalProperties' => false,
         ];
 
-        $ch = curl_init($this->embeddingsUrl);
+        $payload = [
+            'model' => $this->embeddingModel,
+            'messages' => [
+                ['role' => 'user', 'content' => $summary],
+            ],
+            // Some OpenAI-compatible servers ignore response_format; we still send it.
+            'response_format' => [
+                'type' => 'json_schema',
+                'json_schema' => [
+                    'name' => 'news_summary',
+                    'strict' => true,
+                    'schema' => $jsonSchema,
+                ],
+            ],
+            'temperature' => 0.1,
+            // LM Studio/OpenAI-compatible servers use max_tokens; ensure response isn't truncated mid-JSON.
+        ];
+
+
+        $ch = curl_init($this->apiUrl);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_POST, true);
         $body = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
@@ -197,7 +217,7 @@ class AiService
             throw new Exception("AI embeddings returned non-JSON response (http={$httpCode}): {$snippet}");
         }
 
-        $vec = $json['data'][0]['embedding'] ?? null;
+        $vec = $json['data'][0]['vector'] ?? null;
         if (!is_array($vec) || !$vec) {
             throw new Exception("AI embeddings response missing embedding (http={$httpCode})");
         }

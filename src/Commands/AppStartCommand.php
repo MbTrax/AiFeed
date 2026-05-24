@@ -27,7 +27,15 @@ class AppStartCommand extends Command
         $procs[] = $this->startProcess($php, $console, ['composer:start'], 'composer', $logger);
         $procs[] = $this->startProcess($php, $console, ['worker:start', 'tasks_similar'], 'worker:tasks_similar', $logger);
         $procs[] = $this->startProcess($php, $console, ['worker:start', 'tasks_large'], 'worker:tasks_large', $logger);
-        $procs[] = $this->startProcess($php, $console, ['worker:start', 'tasks_embedding'], 'worker:tasks_embedding', $logger);
+        // Embeddings are generated inside the main enrichment job on tasks_large.
+
+        // Local web server for admin panel (public/).
+        $web = (array)($config['web'] ?? []);
+        $host = (string)($web['host'] ?? '127.0.0.1');
+        $port = (int)($web['port'] ?? 8010);
+        if ($port < 1) $port = 8010;
+        $docroot = realpath(__DIR__ . '/../../public') ?: (__DIR__ . '/../../public');
+        $procs[] = $this->startProcess($php, '', ['-S', "{$host}:{$port}", '-t', $docroot], "web:{$host}:{$port}", $logger);
 
         $this->writePidFile($pidFile, $procs, $logger);
 
@@ -54,7 +62,10 @@ class AppStartCommand extends Command
 
     private function startProcess(string $php, string $console, array $cmdArgs, string $name, $logger)
     {
-        $cmd = escapeshellarg($php) . ' ' . escapeshellarg($console);
+        $cmd = escapeshellarg($php);
+        if ($console !== '') {
+            $cmd .= ' ' . escapeshellarg($console);
+        }
         foreach ($cmdArgs as $a) {
             $cmd .= ' ' . escapeshellarg($a);
         }
@@ -65,7 +76,8 @@ class AppStartCommand extends Command
             2 => ['pipe', 'w'],
         ];
 
-        $proc = proc_open($cmd, $spec, $pipes, dirname($console));
+        $cwd = $console !== '' ? dirname($console) : getcwd();
+        $proc = proc_open($cmd, $spec, $pipes, $cwd);
         if (!is_resource($proc)) {
             echo "[app:start] failed to start: {$name}\n";
             $logger->error('failed to start', ['name' => $name]);

@@ -111,4 +111,31 @@ class RedisService
     {
         $this->getClient()->zRem($key, $member);
     }
+
+    public function llen(string $key): int
+    {
+        $n = $this->getClient()->lLen($key);
+        return is_int($n) ? $n : 0;
+    }
+
+    public function lRange(string $key, int $start = 0, int $stop = 20): array
+    {
+        $res = $this->getClient()->lRange($key, $start, $stop);
+        return is_array($res) ? $res : [];
+    }
+
+    public function zCard(string $key): int
+    {
+        $n = $this->getClient()->zCard($key);
+        return is_int($n) ? $n : 0;
+    }
+
+    public function del(string ...$keys): int
+    {
+        if (!$keys) {
+            return 0;
+        }
+        $n = $this->getClient()->del($keys);
+        return is_int($n) ? $n : 0;
+    }
 }

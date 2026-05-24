@@ -16,6 +16,21 @@ $env = static function (string $key, ?string $default = null): ?string {
 
 $rssUrlsRaw = $env('RSS_URLS', '');
 $rssUrls = array_values(array_filter(array_map('trim', preg_split('/[,\n;]/', (string)$rssUrlsRaw))));
+$rssStorageFile = __DIR__ . '/../storage/rss_urls.json';
+
+// Merge RSS urls from env + storage file (admin panel writes here).
+$rssStored = [];
+if (is_file($rssStorageFile)) {
+    $raw = @file_get_contents($rssStorageFile);
+    if (is_string($raw) && trim($raw) !== '') {
+        $json = json_decode($raw, true);
+        if (is_array($json)) {
+            $rssStored = array_values(array_filter(array_map('trim', $json)));
+        }
+    }
+}
+
+$rssUrls = array_values(array_unique(array_filter(array_merge($rssUrls, $rssStored))));
 
 $logFile = $env('LOG_FILE', '');
 $defaultLogFile = __DIR__ . '/../storage/logs/app.log';
@@ -24,6 +39,10 @@ $logFilePath = $logFile !== '' ? $logFile : $defaultLogFile;
 $pidFile = $env('PID_FILE', '');
 $defaultPidFile = __DIR__ . '/../storage/run/app.pids.json';
 $pidFilePath = $pidFile !== '' ? $pidFile : $defaultPidFile;
+
+$webHost = (string)($env('WEB_HOST', '127.0.0.1') ?? '127.0.0.1');
+$webPort = (int)($env('WEB_PORT', '8010') ?? '8010');
+if ($webPort < 1) $webPort = 8010;
 
 return [
     'redis' => [
@@ -41,12 +60,17 @@ return [
     'rss' => [
         'urls' => $rssUrls,
         'pollIntervalSec' => (int)($env('RSS_POLL_INTERVAL', '300') ?? '300'),
+        'storageFile' => $rssStorageFile,
     ],
     'log' => [
         'file' => $logFilePath,
     ],
     'run' => [
         'pidFile' => $pidFilePath,
+    ],
+    'web' => [
+        'host' => $webHost,
+        'port' => $webPort,
     ],
     'aiService' => [
         'host' => $env('AI_HOST', 'localhost:1234'),
